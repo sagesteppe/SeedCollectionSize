@@ -47,3 +47,12 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# large files
+geospatial/
+
+# govt data
+seeds/
+
+#literature
+literature/

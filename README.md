@@ -20,9 +20,9 @@ Spatial predictors include:
 | Layer |                       Description                       |              Source                   | 
 | :---: | :-----------------------------------------------------: | :-----------------------------------: |
 |   1   |                   soil % loam  (0-30 cm)                |              SoilGrids                |
-|   2   |                       Aridity Index                     | Global Ariidty Index and PET database |
-|   3   |             Mean annual precipitation (BIO12)           |        CLIMATENA/PRISM/DISMO          |
-|   4   |         Precipitation of Warmest Quarter (BIO18)        |        PRISM / CLIMATENA / DISMO      |
+|   2   |                       Aridity Index                     | Global Aridity Index and PET database |
+|   3   |             Mean annual precipitation (BIO12)           |               PRISM                   |
+|   4   |         Precipitation of Warmest Quarter (BIO18)        |              WorldClim                |
 |   5   |  Standardized Precip. Evapotranspiration Index   6 (mo) |                SPEI                   |
 |   6   |  Standardized Precip. Evapotranspiration Index  12 (mo) |                SPEI                   |
 |   7   |  Standardized Precip. Evapotranspiration Index  24 (mo) |                SPEI                   |
@@ -35,11 +35,10 @@ Wherein only one SPEI value may be retained in the model.
 For both this, and linear models, the number of seeds per 10 grams will be used to avoid stochasticity in rounding to a whole number at smaller masses, e.g. 3.5 seeds per one gram could be rounded to 3 or 4, vastly increasing uncertainty in estimates. 
 The number of seeds per unit mass will be non-parametrically re-sampled to develop estimates of the mean number of seeds per unit weight.
 
-
 ### Linear Models
 All modelling will be performed using MuMin::dredge.
 
-Seeds/Unit Mass ~ % viability * aridity index * MAP * MPWQ * SPEI6 * SPEI12 * SPEI24,  family = poisson)
+Seeds/Unit Mass ~ with(% viability) * aridity index * MAP * MPWQ * !(SPEI6 && SPEI 12 && SPEI24),  m.lim = c(0, 4), family = poisson)
 
 Only a single SPEI term will be retained in the final model. 
 Models are then automatically selected via AIC tables.
@@ -49,3 +48,5 @@ Finally all models with <sub>d</sub>AIC < 2 are ensembled.
 
 All final models will be saved as R Data Objects. Prediction will occur throughout the field season. 
 The only variables which crews need to collect are the mass of collections, and the percent viability, metrics which they already use in the existing methods of sample size estimation. 
+
+
