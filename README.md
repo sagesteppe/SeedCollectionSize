@@ -50,14 +50,10 @@ The number of seeds per unit mass will be non-parametrically re-sampled to devel
 
 ### Linear Models
 
-#### Spatial auto-correlation
-
-The effect of spatial auto-correlation is expected to be moderately strong for most species, which may result in improper estimates of the dispersion of residuals around our fit model. 
-This effect will be analyzed for each species, and the weights will be feed into the subsequent linear model. (???).
-
 #### Final Models
 
-All modelling will be performed using MuMin::dredge.
+All modelling will be performed using MuMin::pdredge. 
+`pdredge`, is simply a form of dredge which will allow for parallel computations if supplied a cluster. 
 
 Seeds/Unit Mass ~ with(% viability, spatial weights) * aridity index * MAP * MPWQ * !(SPEI6 && SPEI 12 && SPEI24),  m.lim = c(0, 4), family = poisson)
 
@@ -67,11 +63,15 @@ Only a single SPEI term will be retained in the final model.
 Models are then automatically selected via AIC tables.
 Finally all models with <sub>d</sub>AIC < 2 are ensembled. 
 
+#### Spatial auto-correlation
+
+The effect of spatial auto-correlation is expected to be moderately strong for most species, which may result in improper estimates of the dispersion of residuals around our fit model. 
+Subsequent to selecting or ensembling a top model, a GLS with the terms and interactions specified will be 
+
 ## Prediction
 
 All final models will be saved as R Data Objects. 
 Prediction will occur throughout the field season by the senior data specialist.  
 The only variables which crews need to collect are the mass of collections, and the percent viability, metrics which they already use in the existing methods of sample size estimation. 
 The spatial data associated with collections, and which are required to predict collection sizes, and gleaned from in-field electronic data collection. 
-
 
