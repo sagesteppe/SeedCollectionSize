@@ -9,7 +9,7 @@
 #' lapply(spp, boots, 
 #'       dat_col = 'Sepal.Length', name_col = 'Species', replicates = 1000,
 #'       type = 'bca',  parallel = "multicore")
-
+#' @export
 boots <- function(x, dat_col, name_col, replicates, ...){
   
   ci_mean_fun <- function(x, i) mean(x[i])
@@ -95,40 +95,45 @@ varFitter <- function(x, model){
   return(final_model)
 }
 
-predictor <- function(x, y){
+
+min(nc$AREA)
+
+#' predict the results from a fit model onto a matrix
+#' 
+#' This function uses spatial and real time climate values to predict the results of a
+#' fit model into a new matrix for immediate assessment of raw seed collection weights. 
+#' This function is called within 'modeller'.
+#' @param x the data frame from which the model was trained, this used to prevent extrapolation.
+#' @param model a model to predict
+#' @param vals the number of values per variable for the prediction, defaults to 100 per variable
+predictor <- function(x, model, vals){
   
+  if(missing(vals)){vals <- 100}
   # create matrix of possible values. 
   
   ## create quick convex hull to bound Latitude and Longitude with 100 samples. 
-  
-  bounds <- sf::st_convex_hull(x) |>
-    dplyr::mutate(
-      Latitude = sf::st_drop_geometry[1],
-      Longitude = sf::st_drop_geometry[2]
-      )
-  
-  lats <- 
-  longs
-  
-  
-  SPEI_range <- seq(-2.45, 2.5, by = 0.05)
+  bbox <- sf::st_transform(x, 5070) |>
+    sf::st_bbox() 
+
+  SPEI_range <- seq(-2.45, 2.5, length.out = vals)
   
   preds <- data.frame(
-    loam_prcnt = 1:100, 
-    aridity = , 
-    bio12 = ,
-    bio18 = ,
-    ngdd5 = , 
-    SPEI6 =  SPEI_range,
-    SPEI12 = SPEI_range, 
+    viable_prcnt = 1:100,
+    loam_prcnt = seq(min(x$loam), max(x$loam), length.out = vals), 
+    bio1 = seq(min(x$bio1), max(x$bio1), length.out = vals), 
+    bio12 = seq(min(x$bio12), max(x$bio12), length.out = vals),
+    bio18 = seq(min(x$bio18), max(x$bio18), length.out = vals),
+    ngd5 = seq(min(x$ngd5), max(x$ngd5), length.out = vals), 
+    SPEI6 =  SPEI_range, # create full stack, model will pull relevant var as
+    SPEI12 = SPEI_range,  # required.
     SPEI24 = SPEI_range,
-    Latitude = , 
-    Longitude = 
-  )
+    Latitude = seq(from = bbob['ymin'], to = bbox['ymax'], length.out = vals), 
+    Longitude = seq(from = bbob['xmin'], to = bbox['xmax'], length.out = vals)
+  ) 
+  
+  
   
 }
-
-length ( seq(-2.4, 2.5, by = 0.1) )
 
 
 #' fit glm with spatial terms to predict raw seed collection weights
@@ -174,9 +179,27 @@ modeller <- function(x, y, outdir, tax_col, ...){
   # predict values from old model onto new. 
   
   
+}
+
+
+#' find the most similar conditions from obseved data to a models predictions
+most_similar <- function(x){
+  
+  
   
   
 }
+
+
+
+
+
+
+
+
+
+
+
 
 
 str = model[['formula']]
