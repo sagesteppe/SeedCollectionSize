@@ -95,9 +95,6 @@ varFitter <- function(x, model){
   return(final_model)
 }
 
-
-min(nc$AREA)
-
 #' predict the results from a fit model onto a matrix
 #' 
 #' This function uses spatial and real time climate values to predict the results of a
@@ -118,7 +115,7 @@ predictor <- function(x, model, vals){
   SPEI_range <- seq(-2.45, 2.5, length.out = vals)
   
   preds <- data.frame(
-    viable_prcnt = 1:100,
+    viable_prcnt = seq(min(x$viable_prcnt), max = max(x$viable_prcnt), length.outs = vals),
     loam_prcnt = seq(min(x$loam), max(x$loam), length.out = vals), 
     bio1 = seq(min(x$bio1), max(x$bio1), length.out = vals), 
     bio12 = seq(min(x$bio12), max(x$bio12), length.out = vals),
@@ -130,7 +127,6 @@ predictor <- function(x, model, vals){
     Latitude = seq(from = bbob['ymin'], to = bbox['ymax'], length.out = vals), 
     Longitude = seq(from = bbob['xmin'], to = bbox['xmax'], length.out = vals)
   ) 
-  
   
   
 }
@@ -155,6 +151,7 @@ modeller <- function(x, y, outdir, tax_col, ...){
                  subset = model_terms, m.lim = c(0, 4), family = 'poisson')
   
   msAICc <- model.sel(models)
+  # subset to only models with a single SPEI value ??? - or replace skippable steps below
   model <- model.avg(msAICc[ msAICc$delta < 2.0, ], fit = TRUE)
   
   ## hopefully skippable!!!
@@ -172,46 +169,73 @@ modeller <- function(x, y, outdir, tax_col, ...){
   # save r model object
   
   if(!dir.exists(outdir)){(dir.create(outdir, showWarnings = F))}
+  if(!dir.exists(file.path(outdir, 'models'))){
+    (dir.create(file.path(outdir, 'models'), showWarnings = F))
+    }
   
   model_name <- file.path(outdir, unique(tax_col))
   saveRDS(final_model, model_name)
   
-  # predict values from old model onto new. 
+  # predict values for a lookup table 
+  if(!dir.exists(file.path(outdir, 'predictions'))){
+    (dir.create(file.path(outdir, 'predictions'), showWarnings = F))
+  }
+  preds <- predictor(x, model = final_model, ...)
   
+  # save lookup table
+  write.csv(preds, file =
+              file.path(outdir, 'predictions', paste0(unique(tax_col), '.csv')),
+            append = F,  row.names = F)
+  message('Predictions for ', unique(tax_col), ' written to disk.')
   
 }
 
 
-#' find the most similar conditions from obseved data to a models predictions
-most_similar <- function(x){
+#' find the most similar conditions from observed data to a models predictions
+#' 
+#' The input is a data frame with columns showing the observed values for each variable in the prediction model. This function will load a saved lookup table from disk to determine the most similar prediction. 
+#' @return a two row dataframe, one row containing the input information, and the other the matched prediction information
+#' @param x a data frame (or data frame/sf/tibble), with all rows identical to the names in the prediction stack
+#' @param path a path to a directory containing written out prediction tables, as created by the 'modeller' function.
+#' @export
+most_similar <- function(x, path){
   
+  columns <- c(
+    'viable_prcnt', 'loam_prcnt', 'bio1', 'bio12', 'bio18', 'ngd5', 
+    'SPEI6', 'SPE12', 'SPEI24', 'Latitude', 'Longitude')
+  if(missing(path)){path <- '.'} # use current working directory if none supplied.
   
+  # check for whether user specified full path to the sub directory or not
+  if(grep('predictions$', path)){path} else {file.path(path, 'predictions')}
   
+  observed <- sf::st_drop_geometry(ob)
+  
+  # identify species under consideration
+  tax <- observed[,'Taxon']
+  
+  # load lookup tables
+  f <- list.files(path, pattern = '.csv.')
+  predicted <- read.csv(file.path( path, f[ grepl(tax, f, ignore.case = TRUE)]))
+  
+  # identify the most similar row in the data set
+  predicted <- predicted[ 
+    which.min(dist(rbind(observed[1,], predictions))[1:nrow(predictions)]), ] 
+  
+  # show variation between the prediction and observed measurements
+  p <- dplyr::select(predicted, any_of(columns))
+  o <- dplyr::select(observed, any_of(columns))
+  change <- (p / o) 
+  change <- if(change > 1){'do this'} else if (change < 1){'do that'} else {0}
+  change <- change * 100
+  
+  output <- dplyr::bind_rows(observed, predicted, change) |> 
+    dplyr::mutate(Taxon = tax, .before = 1) |> 
+    dplyr::mutate(Metric = c('Observed', 'Predicted', 'Difference')) |> 
+    dplyr::relocate(.cols = any_of(columns), .after = Metric) |>
+    dplyr::select(-Latitude, -Longitude)
+    
+  return(output)
   
 }
 
 
-
-
-
-
-
-
-
-
-
-
-
-str = model[['formula']]
-gsub('', "", str)
-
-gsub('[(][)]', '', str[3])
-library(MuMIn)
-
-summary( glm(formula = y ~ X1 + X2 + X3 + X2:X3, data = Cement) )
-
-## ranked with AICc by default
-(msAICc <- model.sel(fm1, fm2, fm3))
-model <- model.avg( msAICc[ msAICc$delta < 2.0, ], fit = TRUE)
-
-row.names(msAICc)[1]
