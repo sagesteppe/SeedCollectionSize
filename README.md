@@ -30,15 +30,15 @@ Spatial predictors include:
 | Layer |                       Description                       |              Source                   | 
 | :---: | :-----------------------------------------------------: | :-----------------------------------: |
 |   1   |                   soil % loam  (0-30 cm)                |              SoilGrids                |
-|   2   |                       Aridity Index                     |               Chelsa                  |
+|   2   |                     Aridity Index                       |               Chelsa                  |
 |   3   |             Mean annual precipitation (BIO12)           |                PRISM                  |
 |   4   |         Precipitation of Warmest Quarter (BIO18)        |              WorldClim                |
 |   5   |           Number of growing degree days above 5*c       |               Chelsa                  |
 |   6   |  Standardized Precip. Evapotranspiration Index   6 (mo) |                SPEI                   |
 |   7   |  Standardized Precip. Evapotranspiration Index  12 (mo) |                SPEI                   |
 |   8   |  Standardized Precip. Evapotranspiration Index  24 (mo) |                SPEI                   |
-|   9   |                      Latitude                           |                                       |
-|  10   |                     Longitude                           |                                       |
+|   9   |                      Latitude                           |                 NA                    |
+|  10   |                     Longitude                           |                 NA                    |
 
 Wherein only one SPEI value may be retained in the model.   
 
@@ -52,7 +52,7 @@ The number of seeds per unit mass will be non-parametrically re-sampled to devel
 
 #### Final Models
 
-All modelling will be performed using MuMin::pdredge. 
+All initial stages of modelling will be performed using MuMin::pdredge. 
 `pdredge`, is simply a form of dredge which will allow for parallel computations if supplied a cluster. 
 
 Seeds/Unit Mass ~ with(% viability, spatial weights) * aridity index * MAP * MPWQ * !(SPEI6 && SPEI 12 && SPEI24),  m.lim = c(0, 4), family = poisson)
@@ -66,12 +66,14 @@ Finally all models with <sub>d</sub>AIC < 2 are ensembled.
 #### Spatial auto-correlation
 
 The effect of spatial auto-correlation is expected to be moderately strong for most species, which may result in improper estimates of the dispersion of residuals around our fit model. 
-Subsequent to selecting or ensembling a top model, a GLS with the terms and interactions specified will be 
+Subsequent to selecting or ensembling a top model, a GLS with the terms and interactions specified will be generated. 
+This final model will be constructed with the package ... using the function ... which utilizes the eigenvectors across each site included in the training data. 
 
 ## Prediction
 
 All final models will be saved as R Data Objects. 
-Prediction will occur throughout the field season by the senior data specialist.  
+Prediction are made at time of model generation using the generic 'predict' function, with 1000 rows of data which capture the feature space used to train models. 
+A look up function is used to refer to these saved tables and find the predicted value most similar to the observed  parameters...  
 The only variables which crews need to collect are the mass of collections, and the percent viability, metrics which they already use in the existing methods of sample size estimation. 
 The spatial data associated with collections, and which are required to predict collection sizes, and gleaned from in-field electronic data collection. 
 

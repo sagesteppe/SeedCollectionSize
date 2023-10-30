@@ -95,12 +95,19 @@ varFitter <- function(x, model){
   return(final_model)
 }
 
+library(sp)
+library(gstat)
+data(meuse)
+coordinates(meuse) = ~x+y
+vgm1 <- variogram(log(zinc)~1, meuse)
+fit.variogram(vgm1, vgm(1, "Sph", 300, 1))
+
 #' predict the results from a fit model onto a matrix
 #' 
 #' This function uses spatial and real time climate values to predict the results of a
 #' fit model into a new matrix for immediate assessment of raw seed collection weights. 
 #' This function is called within 'modeller'.
-#' @param x the data frame from which the model was trained, this used to prevent extrapolation.
+#' @param x the data frame from which the model was trained, this used to prevent extreme extrapolation.
 #' @param model a model to predict
 #' @param vals the number of values per variable for the prediction, defaults to 100 per variable
 predictor <- function(x, model, vals){
@@ -108,7 +115,7 @@ predictor <- function(x, model, vals){
   if(missing(vals)){vals <- 100}
   # create matrix of possible values. 
   
-  ## create quick convex hull to bound Latitude and Longitude with 100 samples. 
+  ## create quick convex hull to bound Latitude and Longitude.  
   bbox <- sf::st_transform(x, 5070) |>
     sf::st_bbox() 
 
@@ -127,7 +134,6 @@ predictor <- function(x, model, vals){
     Latitude = seq(from = bbob['ymin'], to = bbox['ymax'], length.out = vals), 
     Longitude = seq(from = bbob['xmin'], to = bbox['xmax'], length.out = vals)
   ) 
-  
   
 }
 
@@ -197,6 +203,9 @@ modeller <- function(x, y, outdir, tax_col, ...){
 #' @return a two row dataframe, one row containing the input information, and the other the matched prediction information
 #' @param x a data frame (or data frame/sf/tibble), with all rows identical to the names in the prediction stack
 #' @param path a path to a directory containing written out prediction tables, as created by the 'modeller' function.
+#' @example 
+#' data.frame(viable_prcnt = 1:100, 
+#' )
 #' @export
 most_similar <- function(x, path){
   
@@ -217,16 +226,21 @@ most_similar <- function(x, path){
   f <- list.files(path, pattern = '.csv.')
   predicted <- read.csv(file.path( path, f[ grepl(tax, f, ignore.case = TRUE)]))
   
-  # identify the most similar row in the data set
-  predicted <- predicted[ 
-    which.min(dist(rbind(observed[1,], predictions))[1:nrow(predictions)]), ] 
+  # identify the most similar row in the data set - rescale variables to avoid undue
+  # influence of some with large variation, e.g. lat/long
+  predicted <- which.min(
+    dist(
+      scale(
+        rbind(observed, predictions)
+      )
+    ) 
+    [1:nrow(predictions)]
+  )
   
   # show variation between the prediction and observed measurements
   p <- dplyr::select(predicted, any_of(columns))
   o <- dplyr::select(observed, any_of(columns))
-  change <- (p / o) 
-  change <- if(change > 1){'do this'} else if (change < 1){'do that'} else {0}
-  change <- change * 100
+  change <- ((p / o) / o) * 100 # just put a percent on it. 
   
   output <- dplyr::bind_rows(observed, predicted, change) |> 
     dplyr::mutate(Taxon = tax, .before = 1) |> 
@@ -237,5 +251,23 @@ most_similar <- function(x, path){
   return(output)
   
 }
+
+predictions <- data.frame(
+  viable_prcnt = seq(from = 1, to = 100, length.out = 500), 
+  loam_prcnt = seq(from = 25, to = 45, length.out = 500), 
+  bio1 = seq(from = 7, to = 20, length.out = 500),
+  bio12 = seq(from = 7, to = 20, length.out = 500),
+  bio18 = seq(from = 5, to = 30, length.out = 500),
+  ngd5 = seq(from = 100, to = 225, length.out = 500), 
+  SPEI6 = seq(from = -2, to = 2, length.out = 500),
+  SPEI12 = seq(from = -2, to = 2, length.out = 500),
+  SPEI24 = seq(from = -2, to = 2, length.out = 500),
+  Latitude = seq(from = 1, to = 1000, length.out = 500), 
+  Longitude = seq(from = 1, to = 1000, length.out = 500)
+)
+
+
+observed <- predicted[124,]
+
 
 
