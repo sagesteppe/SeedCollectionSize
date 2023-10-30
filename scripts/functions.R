@@ -44,7 +44,6 @@ boots <- function(x, dat_col, name_col, replicates, ...){
 #' this function is internal to 'modeller', it aims to select a fit variogram, and I am sure does so much better than I do subjectively. 
 #' @param x the input data to 'modeller'
 #' @param model this is internally computed via initial backwards selection of the maximal models specified to dredge.
-
 varFitter <- function(x, model){
   
   cf = formula('~ x + y')
@@ -57,53 +56,76 @@ varFitter <- function(x, model){
     model.lm, correlation = nlme::corSpher(form = cf, nugget = T))
   ratio <-nlme:::update.lme(
     model.lm, correlation = nlme::corRatio(form = cf, nugget = T))
-  linear <- nlme:::update.lme(
-    model.lm, correlation = nlme::corLin(form = cf, nugget = T))
  
-  var_term <- model.sel(model.lm, expone, gaussian, spherical, ratio, linear)
+  var_term <- MuMIn::model.sel(model.lm, expone, gaussian, spherical, ratio)
   var_form <- row.names(var_term)[1]
-
+  
+  terms <- formula ( sub("model.*,", "", model.lm$call)[2] )
+  
   if(grep('expone', var_form)){
     
-    final_model <- nlme::lme(
-      final_terms, data = x, correlation = nlme::corExp(form = cf, nugget = T), method = 'REML')
+    final_model <- nlme::gls(
+      terms, data = x, correlation = nlme::corExp(form = cf, nugget = T), method = 'REML')
     
   } else if(grep('gaussian', var_form)) {
     
-    final_model <- nlme::lme(
-      final_terms, data = x, correlation = nlme::corGaus(form = cf, nugget = T), method = 'REML')
+    final_model <- nlme::gls(
+      terms, data = x, correlation = nlme::corGaus(form = cf, nugget = T), method = 'REML')
     
   } else if(grep('spherical', var_form)){
     
-    final_model <- nlme::lme(
-      final_terms, data = x, correlation = nlme::corSpher(form = cf, nugget = T), method = 'REML')
+    final_model <- nlme::gls(
+      terms, data = x, correlation = nlme::corSpher(form = cf, nugget = T), method = 'REML')
     
   } else if(grep('ratio', var_form)) {
     
-    final_model <- nlme::lme(
-      final_terms, data = x, correlation = nlme::corRatio(form = cf, nugget = T), method = 'REML')
-    
-  } else if(grep('linear', var_form)) { # i think linear is the same as none....
-    
-    final_model <- nlme::lme(
-      final_terms, data = x, correlation = nlme::corLin(form = cf, nugget = T), method = 'REML')
+    final_model <- nlme::gls(
+      terms, data = x, correlation = nlme::corRatio(form = cf, nugget = T), method = 'REML')
     
   } else { 
-    final_model <- nlme::lme(final_terms, data = x, method = 'REML')
+    final_model <- nlme::gls(terms, data = x, method = 'REML')
     }
   
   return(final_model)
 }
 
-library(sp)
-library(gstat)
-data(meuse)
-coordinates(meuse) = ~x+y
-vgm1 <- variogram(log(zinc)~1, meuse)
-fit.variogram(vgm1, vgm(1, "Sph", 300, 1))
 
-#' predict the results from a fit model onto a matrix
-#' 
+#' report the results of modelling
+reporter <- function(x){
+  
+  terms <- output$terms[[3]] # independent variables
+  sigma <- output$sigma # this is a quasi r-squared 
+  correlation <- output[["call"]][["correlation"]][[1]][[3]] # correlation structure / if relevant
+  
+  # spell out correlation structure.  / if relevant
+  
+  # generate confidence and prediction intervals ala 
+  # https://fw8051statistics4ecologists.netlify.app/gls.html as predict() does not PI pred ints for gls()
+  
+  xmat <- model.matrix(~ RESPONSE_COL, data = x) # what are theses???
+  betahat <- coef(model)
+  
+  # Predictions
+  sdata$SpnEsc.hat <- predict(model)
+  cbind(head(xmat%*%betahat), head(sdata$SpnEsc.hat))
+  
+  Sigmahat <- vcov(model)
+  varcovEYhat<-xmat%*%Sigmahat%*%t(xmat)
+  SEline <- sqrt(diag(varcovEYhat))
+  
+  sdata$upconf <- sdata$SpnEsc.hat + 1.645 * SEline
+  sdata$lowconf <- sdata$SpnEsc.hat - 1.645 * SEline
+  
+  varpredict <- SEline ^ 2 + sig2i ^ 2
+  sdata$pred_upconf <- sdata$SpnEsc.hat + 1.645 * sqrt(varpredict)
+  sdata$red_lowconf <- sdata$SpnEsc.hat - 1.645 * sqrt(varpredict)
+  
+  
+  # plot and save. 
+}
+
+
+
 #' This function uses spatial and real time climate values to predict the results of a
 #' fit model into a new matrix for immediate assessment of raw seed collection weights. 
 #' This function is called within 'modeller'.
