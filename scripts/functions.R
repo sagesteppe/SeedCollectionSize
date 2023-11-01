@@ -38,7 +38,6 @@ boots <- function(x, dat_col, name_col, replicates, ...){
   
 }
 
-
 #' fit and select a best variogram for a model
 #' 
 #' this function is internal to 'modeller', it aims to select a fit variogram, and I am sure does so much better than I do subjectively. 
@@ -125,7 +124,6 @@ reporter <- function(x){
 }
 
 
-
 #' This function uses spatial and real time climate values to predict the results of a
 #' fit model into a new matrix for immediate assessment of raw seed collection weights. 
 #' This function is called within 'modeller'.
@@ -160,27 +158,46 @@ predictor <- function(x, model, vals){
 }
 
 
+colnames(trees) <- c('SeedViab', 'BIO1', 'SeedMass')
+ 
+spei <- data.frame(
+  SPEI6 = sort( runif(n = 31, min = -2, max = 2) ), 
+  SPEI12 = sort( runif(n = 31, min = -2, max = 2) ),
+  SPEI24 =  sort( runif(n = 31, min = -2, max = 2) )
+)
+
+seeds <- cbind(trees, spei) 
+seeds$SeedMass <- round(seeds$SeedMass, 0)
+
+test_terms <- glm(
+  SeedMass ~ SeedViab * BIO1 + SPEI6 + SPEI12, 
+  data = seeds, na.action = "na.fail", family = 'poisson'
+)
+
+
+models <- MuMIn::dredge(test_terms, subset = with(SeedViab), m.lim = c(0, 4))
+
+msAICc <- model.sel(models)
+msAICc <- msAICc[ msAICc$delta < 2.0, ]
+model <- model.avg(msAICc, fit = TRUE)
+
+summary(model)
+
+
 #' fit glm with spatial terms to predict raw seed collection weights
 modeller <- function(x, y, outdir, tax_col, ...){
   
   model_terms <- expression(
-    SeedMass ~ with(SeedViab) * aridity * MAP * MPWQ * !(SPEI6 && SPEI 12 && SPEI24)
+    SeedMass ~ with(SeedViab) * aridity * MAP * MPWQ * !(SPEI6 && SPEI12 && SPEI24)
     )
   
-  # establish a cluster
-  clusterType <- if(length(find.package("snow", quiet = TRUE))) "SOCK" else "PSOCK"
-  clust <- try(
-    parallel::makeCluster(
-      getOption("cl.cores", parallel::detectCores()), type = clusterType)
-    )
-  clusterExport(clust, x)
-  
+  #fit models
   models <- MuMIn::pdredge(x, cluster = clust, 
                  subset = model_terms, m.lim = c(0, 4), family = 'poisson')
   
   msAICc <- model.sel(models)
-  # subset to only models with a single SPEI value ??? - or replace skippable steps below
   model <- model.avg(msAICc[ msAICc$delta < 2.0, ], fit = TRUE)
+  
   
   ## hopefully skippable!!!
   

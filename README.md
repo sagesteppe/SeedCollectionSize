@@ -29,16 +29,17 @@ Spatial predictors include:
 
 | Layer |                       Description                       |              Source                   | 
 | :---: | :-----------------------------------------------------: | :-----------------------------------: |
-|   1   |                   soil % loam  (0-30 cm)                |              SoilGrids                |
-|   2   |                     Aridity Index                       |               Chelsa                  |
-|   3   |             Mean annual precipitation (BIO12)           |                PRISM                  |
-|   4   |         Precipitation of Warmest Quarter (BIO18)        |              WorldClim                |
+|   1   |               mean soil % loam (0-30 cm)                |              SoilGrids                |
+|   2   |             Mean Annual Air Temperature (BIO1)          |               Chelsa                  |
+|   3   |             Mean annual precipitation (BIO12)           |               Chelsa                  |
+|   4   |         Precipitation of Warmest Quarter (BIO18)        |               Chelsa                  |
 |   5   |           Number of growing degree days above 5*c       |               Chelsa                  |
 |   6   |  Standardized Precip. Evapotranspiration Index   6 (mo) |                SPEI                   |
-|   7   |  Standardized Precip. Evapotranspiration Index  12 (mo) |                SPEI                   |
-|   8   |  Standardized Precip. Evapotranspiration Index  24 (mo) |                SPEI                   |
-|   9   |                      Latitude                           |                 NA                    |
-|  10   |                     Longitude                           |                 NA                    |
+|   7   |  Standardized Precip. Evapotranspiration Index  24 (mo) |                SPEI                   |
+|   8   |  Standardized Precip. Evapotranspiration Index  48 (mo) |                SPEI                   |
+|   9   |            Years Since Most Recent Fire (YSMRF)         |                NIFC                   |
+|  10   |                      Latitude                           |                 NA                    |
+|  11   |                     Longitude                           |                 NA                    |
 
 Wherein only one SPEI value may be retained in the model.   
 
@@ -50,16 +51,22 @@ The number of seeds per unit mass will be non-parametrically re-sampled to devel
 
 ### Linear Models
 
+For simpler interpretation of outputs, and to avoid consequences of over-parameterizing models, single best fit linear models - on occasion from an ensemble of a few models, are used. 
+
 #### Final Models
 
-All initial stages of modelling will be performed using MuMin::pdredge. 
-`pdredge`, is simply a form of dredge which will allow for parallel computations if supplied a cluster. 
+All initial stages of modelling will be performed using MuMin::dredge. 
+`dredge`, is simply a form of dredge which will allow for parallel computations if supplied a cluster. 
 
-Seeds/Unit Mass ~ with(% viability, spatial weights) * aridity index * MAP * MPWQ * !(SPEI6 && SPEI 12 && SPEI24),  m.lim = c(0, 4), family = poisson)
+terms <- glm(
+  SeedMass ~ SeedViab * BIO1 * BIO12 * BIO18 * SPEI6 * SPEI12 * SPEI24 * X, 
+  data = seeds, na.action = "na.fail", family = 'poisson'
+)
+
+models <- MuMIn::dredge(test_terms, subset = with(SeedViab), m.lim = c(0, 5))
 
 Percent viable seed are maintained in all models, this is an additional metric which is present both in the processed Bend data, and which is collected by crews on the date of collection. 
 As I suspect the largest proportion of mass per, dried, collection is associated with seeds, whether viable or not. 
-Only a single SPEI term will be retained in the final model. 
 Models are then automatically selected via AIC tables.
 Finally all models with <sub>d</sub>AIC < 2 are ensembled. 
 
