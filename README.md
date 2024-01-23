@@ -23,7 +23,7 @@ These data were largely collected across Bureau of Land Management land in 13+ s
 The SOS program contains seeds collected in two relevant modes of collection, 'conservation' collections target 10,000 seed collections in order to preserve the germplasm of a population, while the aforementioned 'operational' collections both preserve the germplasm and provide farmers adequate stocks to cultivate the lineage. 
 Seeds of Success crews have been making conservation collections since 2002, given both their smaller size and the longer implementation time relative to operational collections - which began around 2015, the number of conservation collections exceeds the number of 'operational' collections, but effectively follow the same process. 
 Both 'operational' and 'conservation' collections were considered simultaneously for our analyses in order to increase sample sizes. 
-The dried collection weights served as the reponse variable, while seed viability served as a covariate. 
+The dried collection weights served as the response variable, while seed viability served as a covariate. 
 
 Spatial predictors include:   
 
@@ -39,9 +39,7 @@ Spatial predictors include:
 |   8   |  Standardized Precip. Evapotranspiration Index  48 (mo) |                SPEI                   |
 |   9   |            Years Since Most Recent Fire (YSMRF)         |                NIFC                   |
 |  10   |                      Latitude                           |                 NA                    |
-|  11   |                     Longitude                           |                 NA                    |
-
-Wherein only one SPEI value may be retained in the model.   
+|  11   |                      Longitude                          |                 NA                    |
 
 ## Models
 
@@ -55,15 +53,14 @@ For simpler interpretation of outputs, and to avoid consequences of over-paramet
 
 #### Final Models
 
-All initial stages of modelling will be performed using MuMin::dredge. 
-`dredge`, is simply a form of dredge which will allow for parallel computations if supplied a cluster. 
+All initial stages of modelling will be performed using MuMin::dredge. dredge creates all model subsets of a maximal, or 'global' model. 
 
 terms <- glm(
   SeedMass ~ SeedViab * BIO1 * BIO12 * BIO18 * SPEI6 * SPEI12 * SPEI24 * X, 
   data = seeds, na.action = "na.fail", family = 'poisson'
 )
 
-models <- MuMIn::dredge(test_terms, subset = with(SeedViab), m.lim = c(0, 5))
+models <- MuMIn::dredge(terms, subset = with(SeedViab))
 
 Percent viable seed are maintained in all models, this is an additional metric which is present both in the processed Bend data, and which is collected by crews on the date of collection. 
 As I suspect the largest proportion of mass per, dried, collection is associated with seeds, whether viable or not. 
